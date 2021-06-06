@@ -19,7 +19,6 @@ def generateRunesLookup():
     if runes.ok:
         runes = json.loads(runes.text)
         lookup = {}
-        lookup["version"] = "11.11.1"
         for idx, tree in enumerate(runes):
             for jdx, slot in enumerate(tree["slots"]):
                 for kdx, rune in enumerate(slot["runes"]):
@@ -27,12 +26,81 @@ def generateRunesLookup():
     else:
         print("ddragon not reachable")
     
-    print(json.dumps(lookup, indent=4))
+    #print(json.dumps(lookup, indent=4))
+    return lookup
+
+#didn't find shard infos so hardcoding it in for now
+#using items.json as example
+#FlatAbilityHasteMod is a guess since there is no data for it in items.json
+#FlatHPPoolModMax, AdaptiveForce and FlatAdaptiveForceMod are also made up
+def generateShardLookup():
+    lookup = {
+        "5001": {
+            "rawDescription": "perk_tooltip_StatModHealthScaling",
+            "tags": [
+                "Health",
+                "Scaling"
+            ],
+            "stats": {
+                "FlatHPPoolMod": 15,
+                "FlatHPPoolModMax": 90
+            }
+        },
+        "5002": {
+            "rawDescription": "perk_tooltip_StatModArmor",
+            "tags": [
+                "Armor"
+            ],
+            "stats": {
+                "FlatArmorMod": 6
+            }
+        },
+        "5003": {
+            "rawDescription": "perk_tooltip_StatModMagicResist",
+            "tags": [
+                "SpellBlock"
+            ],
+            "stats": {
+                "FlatSpellBlockMod": 8
+            }
+        },
+        "5005": {
+            "rawDescription": "perk_tooltip_StatModAttackSpeed",
+            "tags": [
+                "AttackSpeed"
+            ],
+            "stats": {
+                "PercentAttackSpeedMod": 10
+            }
+        },
+        "5007": {
+            "rawDescription": "perk_tooltip_StatModCooldownReductionScaling",
+            "tags": [
+                "AbilityHaste"
+            ],
+            "stats": {
+                "FlatAbilityHasteMod": 8
+            }
+        },
+        "5008": {
+            "rawDescription": "perk_tooltip_StatModAdaptive",
+            "tags": [
+                "AdaptiveForce"
+            ],
+            "stats": {
+                "FlatAdaptiveForceMod": 9
+            }
+        }
+    }
+
+    return lookup
 
 config = configparser.ConfigParser()
 config.read("apikey.ini")
 apikey = config["riotapi"]["apiKey"]
-summonername = config["riotapi"]["summonername"]
+
+summonername = "pwain"
+region = "euw1"
 
 #summoner = call_riot("https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-name/" + summonername)
 #summoner = json.loads(summoner.text)
@@ -40,4 +108,6 @@ summonername = config["riotapi"]["summonername"]
 #print(summoner["puuid"])
 #print(summoner["name"])
 
-generateRunesLookup()
+runeslookup = generateRunesLookup()
+shardslookup = generateShardLookup()
+
