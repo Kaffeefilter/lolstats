@@ -7,10 +7,11 @@ from pprint import pprint
 #ratelimit imposed by Riot
 #20 requests every 1 seconds(s)
 #100 requests every 2 minutes(s)
+#do one less just to be sure
 @sleep_and_retry
-@limits(calls=20, period=1)
+@limits(calls=19, period=1)
 @sleep_and_retry
-@limits(calls=100, period=120)
+@limits(calls=99, period=120)
 def call_riot(url):
     response = requests.get(url, headers={"X-Riot-Token": apikey})
     return response
@@ -132,6 +133,9 @@ for match in matches:
     r = call_riot(f"https://{region}.api.riotgames.com/lol/match/v4/matches/{match['gameId']}")
     matchdetails = json.loads(r.text)
     print(r.status_code)
+    if matchdetails["queueId"] == 700:  #skip clash games for now, calculating opponent is not reliably in match/v4, need to switch to match/v5
+        print("skip clashgame")
+        continue     
 
     print(f"get timeline for match {match['gameId']}")
     #get match timeline
