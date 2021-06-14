@@ -214,7 +214,8 @@ for match in matches:
                 else:
                     opponents.append({"id": player["player"]["accountId"], "name": player["player"]["summonerName"]})
 
-
+    #TODO change from diffPerMinDeltas to diffAtXX
+    #Checklist for cs, gold, xp: perMinDeltas, totalSelf, totalOpponent, diffAtXX
     dbentry = {
         "game": {
             "championId": summonerMatchStats["championId"],
@@ -249,17 +250,17 @@ for match in matches:
             "ccScore": summonerMatchStats["stats"]["timeCCingOthers"],
             "deltas": deltas,
             "csPerMinDeltas": summonerMatchStats["timeline"]["creepsPerMinDeltas"],
-            "csDiffPerMinDeltas": summonerMatchStats["timeline"]["csDiffPerMinDeltas"] if matchdetails["gameMode"] == "CLASSIC" else None, #TODO csDiffPerMinDeltas not always present ?!?!?!
+            #"csDiffPerMinDeltas": summonerMatchStats["timeline"]["csDiffPerMinDeltas"] if matchdetails["gameMode"] == "CLASSIC" else None, #TODO csDiffPerMinDeltas not always present ?!?!?!
             "totalCsScore": summonerMatchStats["stats"]["totalMinionsKilled"] + summonerMatchStats["stats"]["neutralMinionsKilled"],
-            "totalOpponentScScore": opponentMatchStats["stats"]["totalMinionsKilled"] + opponentMatchStats["stats"]["neutralMinionsKilled"] if matchdetails["gameMode"] == "CLASSIC" else None,
+            "totalOpponentCsScore": opponentMatchStats["stats"]["totalMinionsKilled"] + opponentMatchStats["stats"]["neutralMinionsKilled"] if matchdetails["gameMode"] == "CLASSIC" else None,
             "csDiffAt15": csdiff if matchdetails["gameMode"] == "CLASSIC" else None,
             "goldPerMinDeltas": summonerMatchStats["timeline"]["goldPerMinDeltas"],
-            "opponentsGoldPerMinDeltas": opponentMatchStats["timeline"]["goldPerMinDeltas"] if matchdetails["gameMode"] == "CLASSIC" else None,
+            #"opponentsGoldPerMinDeltas": opponentMatchStats["timeline"]["goldPerMinDeltas"] if matchdetails["gameMode"] == "CLASSIC" else None,
             "totalGold": summonerMatchStats["stats"]["goldEarned"],
             "totalOpponentGold": opponentMatchStats["stats"]["goldEarned"] if matchdetails["gameMode"] == "CLASSIC" else None,
             "goldDiffAt15": golddiff if matchdetails["gameMode"] == "CLASSIC" else None,
             "xpPerMinDeltas": summonerMatchStats["timeline"]["xpPerMinDeltas"],
-            "xpDiffPerMinDeltas": summonerMatchStats["timeline"]["xpDiffPerMinDeltas"] if matchdetails["gameMode"] == "CLASSIC" else None,
+            #"xpDiffPerMinDeltas": summonerMatchStats["timeline"]["xpDiffPerMinDeltas"] if matchdetails["gameMode"] == "CLASSIC" else None,
             "xpDiffAt15": xpdiff if matchdetails["gameMode"] == "CLASSIC" else None,
             "champLevel": summonerMatchStats["stats"]["champLevel"],
             "opponentChampLevel": opponentMatchStats["stats"]["champLevel"] if matchdetails["gameMode"] == "CLASSIC" else None
@@ -282,9 +283,9 @@ for match in matches:
     db.append(dbentry)
 
     #save last entry for debug purposes
-    f = open("data/last_entry.json", "w")
+    """f = open("data/last_entry.json", "w")
     f.write(json.dumps(dbentry, indent=4))
-    f.close()
+    f.close()"""
 
 
 f = open("data/db_dump.json", "w")
