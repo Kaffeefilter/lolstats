@@ -2,6 +2,8 @@ import configparser
 import requests
 import json
 from ratelimit import limits, sleep_and_retry
+from progress.bar import Bar
+import math
 from pprint import pprint
 
 #ratelimit imposed by Riot
@@ -115,6 +117,7 @@ shardslookup = generateShardLookup()
 n = 100
 endIndex = 0
 matches = []
+bar = Bar('Processing', max=(int(math.ceil(n / 100.0)) * 100))
 while endIndex < n:
     r = call_riot(f"https://{region}.api.riotgames.com/lol/match/v4/matchlists/by-account/{me['accountId']}?beginIndex={endIndex}")
     matchlist = json.loads(r.text)
@@ -128,20 +131,21 @@ while endIndex < n:
 
 db = []
 for match in matches:
-    print(f"get match {match['gameId']}")
+    #print(f"get match {match['gameId']}")
     #get match details
     r = call_riot(f"https://{region}.api.riotgames.com/lol/match/v4/matches/{match['gameId']}")
     matchdetails = json.loads(r.text)
-    print(r.status_code)
+    #print(r.status_code)
     if matchdetails["queueId"] == 700:  #skip clash games for now, calculating opponent is not reliably in match/v4, need to switch to match/v5
-        print("skip clashgame")
+        #print("skip clashgame")
+        bar.next()
         continue     
 
-    print(f"get timeline for match {match['gameId']}")
+    #print(f"get timeline for match {match['gameId']}")
     #get match timeline
     r = call_riot(f"https://{region}.api.riotgames.com/lol/match/v4/timelines/by-match/{match['gameId']}")
     matchTimeline = json.loads(r.text)
-    print(r.status_code)
+    #print(r.status_code)
 
     #save last entry for debug purposes
     f = open("data/last_match.json", "w")
@@ -219,7 +223,7 @@ for match in matches:
                     opponents.append({"id": player["player"]["accountId"], "name": player["player"]["summonerName"]})
 
     #TODO change from diffPerMinDeltas to diffAtXX
-    #Checklist for cs, gold, xp: perMinDeltas, totalSelf, totalOpponent, diffAtXX
+    #Checklist for cs, gold, xp: perMinDeltas ✅, totalSelf✅, totalOpponent✅, diffAtXX❌
     dbentry = {
         "game": {
             "championId": summonerMatchStats["championId"],
@@ -286,16 +290,17 @@ for match in matches:
 
     db.append(dbentry)
 
+    bar.next()
+
     #save last entry for debug purposes
     """f = open("data/last_entry.json", "w")
     f.write(json.dumps(dbentry, indent=4))
     f.close()"""
 
+bar.finish()
 
 f = open("data/db_dump.json", "w")
 f.write(json.dumps(db, indent=4))
 f.close()
-
-
 
 
