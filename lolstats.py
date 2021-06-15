@@ -17,6 +17,8 @@ from pprint import pprint
 def call_riot(url):
     response = requests.get(url, headers={"X-Riot-Token": apikey})
     return response
+    #TODO handle gateway timeout
+    #TODO handle response errors
 
 def generateRunesLookup():
     runes = requests.get("http://ddragon.leagueoflegends.com/cdn/11.11.1/data/en_US/runesReforged.json")
@@ -129,32 +131,33 @@ while endIndex < n:
         })
     endIndex = matchlist["endIndex"]
 
+#get list of ids of relevant gamemodes
+r = requests.get("https://static.developer.riotgames.com/docs/lol/queues.json")
+queues = json.loads(r.text)
+gamefilter = [ queue["queueId"] for queue in queues if queue["notes"] == None if queue["description"] != None if "5v5" in queue["description"] ]
+#filtered = [ queue["queueId"] for queue in queues if queue["notes"] == None if queue["description"] != None if "5v5" in queue["description"] or "Clash" in queue["description"] ]
+
 db = []
 for match in matches:
-    #print(f"get match {match['gameId']}")
     #get match details
     r = call_riot(f"https://{region}.api.riotgames.com/lol/match/v4/matches/{match['gameId']}")
     matchdetails = json.loads(r.text)
-    #print(r.status_code)
-    if matchdetails["queueId"] == 700:  #skip clash games for now, calculating opponent is not reliably in match/v4, need to switch to match/v5
-        #print("skip clashgame")
+    if matchdetails["queueId"] not in gamefilter:
         bar.next()
         continue     
 
-    #print(f"get timeline for match {match['gameId']}")
     #get match timeline
     r = call_riot(f"https://{region}.api.riotgames.com/lol/match/v4/timelines/by-match/{match['gameId']}")
     matchTimeline = json.loads(r.text)
-    #print(r.status_code)
 
     #save last entry for debug purposes
-    f = open("data/last_match.json", "w")
+    """ f = open("data/last_match.json", "w")
     f.write(json.dumps(matchdetails, indent=4))
     f.close()
 
     f = open("data/last_timeline.json", "w")
     f.write(json.dumps(matchTimeline, indent=4))
-    f.close()
+    f.close() """
 
     #search for summonerId in match
     for participant in matchdetails["participantIdentities"]:
@@ -223,7 +226,7 @@ for match in matches:
                     opponents.append({"id": player["player"]["accountId"], "name": player["player"]["summonerName"]})
 
     #TODO change from diffPerMinDeltas to diffAtXX
-    #Checklist for cs, gold, xp: perMinDeltas ✅, totalSelf✅, totalOpponent✅, diffAtXX❌
+    #Checklist for cs, gold, xp: perMinDeltas done, totalSelf done, totalOpponent done, diffAtXX TODO
     dbentry = {
         "game": {
             "championId": summonerMatchStats["championId"],
@@ -258,7 +261,7 @@ for match in matches:
             "ccScore": summonerMatchStats["stats"]["timeCCingOthers"],
             "deltas": deltas,
             "csPerMinDeltas": summonerMatchStats["timeline"]["creepsPerMinDeltas"],
-            #"csDiffPerMinDeltas": summonerMatchStats["timeline"]["csDiffPerMinDeltas"] if matchdetails["gameMode"] == "CLASSIC" else None, #TODO csDiffPerMinDeltas not always present ?!?!?!
+            #"csDiffPerMinDeltas": summonerMatchStats["timeline"]["csDiffPerMinDeltas"] if matchdetails["gameMode"] == "CLASSIC" else None,
             "totalCsScore": summonerMatchStats["stats"]["totalMinionsKilled"] + summonerMatchStats["stats"]["neutralMinionsKilled"],
             "totalOpponentCsScore": opponentMatchStats["stats"]["totalMinionsKilled"] + opponentMatchStats["stats"]["neutralMinionsKilled"] if matchdetails["gameMode"] == "CLASSIC" else None,
             "csDiffAt15": csdiff if matchdetails["gameMode"] == "CLASSIC" else None,
