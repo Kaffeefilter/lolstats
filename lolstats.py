@@ -1,7 +1,8 @@
 import configparser
 import requests
 import json
-from ratelimit import limits, sleep_and_retry
+from ratelimit import limits, sleep_and_retry, RateLimitException
+from backoff import on_exception, expo
 from progress.bar import Bar
 import math
 from pprint import pprint
@@ -10,15 +11,17 @@ from pprint import pprint
 #20 requests every 1 seconds(s)
 #100 requests every 2 minutes(s)
 #do one less just to be sure
+@on_exception(expo, Exception, max_tries=8)
 @sleep_and_retry
 @limits(calls=19, period=1)
 @sleep_and_retry
 @limits(calls=99, period=120)
 def call_riot(url):
     response = requests.get(url, headers={"X-Riot-Token": apikey})
+
+    if response.status_code >= 500:
+        raise Exception(f'API response: {response.status_code}')
     return response
-    #TODO handle gateway timeout
-    #TODO handle response errors
 
 def generateRunesLookup():
     runes = requests.get("http://ddragon.leagueoflegends.com/cdn/11.11.1/data/en_US/runesReforged.json")
@@ -306,4 +309,4 @@ f = open("data/db_dump.json", "w")
 f.write(json.dumps(db, indent=4))
 f.close()
 
-
+print(f"saved {len(db)} from {len(matches)} games")
