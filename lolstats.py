@@ -7,11 +7,14 @@ from progress.bar import Bar
 import math
 from pprint import pprint
 
+def dataNotFound(e):
+    return 404 == e.response.status_code
+
 #ratelimit imposed by Riot
 #20 requests every 1 seconds(s)
 #100 requests every 2 minutes(s)
 #do one less just to be sure
-@on_exception(expo, Exception, max_tries=8)
+@on_exception(expo, Exception, max_tries=8, giveup=dataNotFound)
 @sleep_and_retry
 @limits(calls=19, period=1)
 @sleep_and_retry
@@ -110,6 +113,7 @@ apikey = config["riotapi"]["apiKey"]
 
 summonername = "pwain"
 region = "euw1"
+regionv5 = "europe"
 
 summoner = call_riot("https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-name/" + summonername)
 me = json.loads(summoner.text)
@@ -118,41 +122,40 @@ runeslookup = generateRunesLookup()
 shardslookup = generateShardLookup()
 
 #get a list of the last n matches played
-#endIndex from response is beginIndex for next call
 n = 100
-endIndex = 0
 matches = []
-bar = Bar('Processing', max=(int(math.ceil(n / 100.0)) * 100))
-while endIndex < n:
-    r = call_riot(f"https://{region}.api.riotgames.com/lol/match/v4/matchlists/by-account/{me['accountId']}?beginIndex={endIndex}")
-    matchlist = json.loads(r.text)
-    for match in matchlist["matches"]:
-        matches.append({
-            "gameId": match["gameId"],
-            "queue": match["queue"],
-            "timestamp": match["timestamp"]
-        })
-    endIndex = matchlist["endIndex"]
+indexes = list(range(0, n, 100))
+indexes.append(n)
+prevIndex = -1
+for index in indexes:
+    if prevIndex >= 0:
+        r = call_riot(f"https://{regionv5}.api.riotgames.com/lol/match/v5/matches/by-puuid/{me['puuid']}/ids?start={prevIndex}&count={index - prevIndex}")
+        matches.extend(json.loads(r.text))
+    prevIndex = index
 
 #get list of ids of relevant gamemodes
 r = requests.get("https://static.developer.riotgames.com/docs/lol/queues.json")
 queues = json.loads(r.text)
-gamefilter = [ queue["queueId"] for queue in queues if queue["notes"] == None if queue["description"] != None if "5v5" in queue["description"] ]
-#filtered = [ queue["queueId"] for queue in queues if queue["notes"] == None if queue["description"] != None if "5v5" in queue["description"] or "Clash" in queue["description"] ]
+#gamefilter = [ queue["queueId"] for queue in queues if queue["notes"] == None if queue["description"] != None if "5v5" in queue["description"] ]
+gamefilter = [ queue["queueId"] for queue in queues if queue["notes"] == None if queue["description"] != None if "5v5" in queue["description"] or "Clash" in queue["description"] ]
 
+bar = Bar('Processing', max=n)
 db = []
 for match in matches:
     #get match details
-    r = call_riot(f"https://{region}.api.riotgames.com/lol/match/v4/matches/{match['gameId']}")
+    r = call_riot(f"https://{regionv5}.api.riotgames.com/lol/match/v5/matches/{match}")
+    if not r.ok:
+        bar.next()
+        continue
     matchdetails = json.loads(r.text)
-    if matchdetails["queueId"] not in gamefilter:
+    if matchdetails["info"]["queueId"] not in gamefilter:
         bar.next()
         continue     
 
     #get match timeline
-    r = call_riot(f"https://{region}.api.riotgames.com/lol/match/v4/timelines/by-match/{match['gameId']}")
+    r = call_riot(f"https://{regionv5}.api.riotgames.com/lol/match/v5/matches/{match}/timeline")
     matchTimeline = json.loads(r.text)
-
+    
     #save last entry for debug purposes
     """ f = open("data/last_match.json", "w")
     f.write(json.dumps(matchdetails, indent=4))
@@ -161,6 +164,11 @@ for match in matches:
     f = open("data/last_timeline.json", "w")
     f.write(json.dumps(matchTimeline, indent=4))
     f.close() """
+    
+    #TODO here
+    bar.next()
+    continue
+
 
     #search for summonerId in match
     for participant in matchdetails["participantIdentities"]:
@@ -295,7 +303,7 @@ for match in matches:
     }
 
     db.append(dbentry)
-
+    
     bar.next()
 
     #save last entry for debug purposes
@@ -305,8 +313,8 @@ for match in matches:
 
 bar.finish()
 
-f = open("data/db_dump.json", "w")
+""" f = open("data/db_dump.json", "w")
 f.write(json.dumps(db, indent=4))
-f.close()
+f.close() """
 
 print(f"saved {len(db)} from {len(matches)} games")
