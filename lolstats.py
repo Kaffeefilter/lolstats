@@ -164,52 +164,41 @@ for match in matches:
     f = open("data/last_timeline.json", "w")
     f.write(json.dumps(matchTimeline, indent=4))
     f.close() """
-    
-    #TODO here
-    bar.next()
-    continue
 
-
-    #search for summonerId in match
-    for participant in matchdetails["participantIdentities"]:
-        if summonername == participant["player"]["summonerName"]:
-            summonerMatchId = participant["participantId"]
-            break
-    
     #get the right stats
-    if matchdetails["participants"][summonerMatchId - 1]["participantId"] == summonerMatchId:   #most of the time the right index is Id - 1
-        summonerMatchStats = matchdetails["participants"][summonerMatchId - 1]
-    else:
-        for participant in matchdetails["participants"]:
-            if participant["participantId"] == summonerMatchId:
-                summonerMatchStats = participant
-                break
+    for participant in matchdetails["info"]["participants"]:
+        if participant["summonerName"] == summonername:
+            summonerMatchStats = participant
 
-    #get the right team
-    for team in matchdetails["teams"]:
+    #get the right team stats
+    for team in matchdetails["info"]["teams"]:
         if team["teamId"] == summonerMatchStats["teamId"]:
             teamStats = team
 
     #calculate team kills since there is no data for it
     teamKills = 0
-    for participant in matchdetails["participants"]:
+    for participant in matchdetails["info"]["participants"]:
         if participant["teamId"] == summonerMatchStats["teamId"]:
-            teamKills += participant["stats"]["kills"]
+            teamKills += participant["kills"]
 
     #get all deltas
     # deltas = []
     # for delta in summonerMatchStats["timeline"]["xpPerMinDeltas"]:
     #     deltas.append(delta)
-    deltas = [delta for delta in summonerMatchStats["timeline"]["xpPerMinDeltas"]]
+    #deltas = [delta for delta in summonerMatchStats["timeline"]["xpPerMinDeltas"]]
+    #there are no deltas in v5
 
     #get opponents stats
     for participant in matchdetails["participants"]:
         if (
             participant["teamId"] != summonerMatchStats["teamId"] and 
-            participant["timeline"]["role"] == summonerMatchStats["timeline"]["role"] and
-            participant["timeline"]["lane"] == summonerMatchStats["timeline"]["lane"]
+            participant["individualPosition"] == summonerMatchStats["individualPosition"]
         ):
             opponentMatchStats = participant
+
+    #TODO here
+    bar.next()
+    continue
 
     #calculate diff at 15 for cs, gold and xp
     csdiff = golddiff = xpdiff = 0
