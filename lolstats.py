@@ -219,6 +219,7 @@ def getNGames(n):
         dbentry = {
             "game": {
                 "championId": summonerMatchStats["championId"],
+                "championName": summonerMatchStats["championName"],
                 "teamId": summonerMatchStats["teamId"],
                 "queueId": matchdetails["info"]["queueId"],
                 "gameMode": matchdetails["info"]["gameMode"],
