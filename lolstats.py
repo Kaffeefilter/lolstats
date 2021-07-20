@@ -306,11 +306,14 @@ def updateDB(entries):
 
 def main():
 
-    db = getNGames(50)
+    #db = getNGames(50)
 
     """ f = open("data/db_dump.json", "w")
     f.write(json.dumps(db))
     f.close() """
+
+    with open("data/examplegames.json") as f:
+        db = json.load(f)
 
     updateDB(db)
 
