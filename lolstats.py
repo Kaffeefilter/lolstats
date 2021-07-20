@@ -19,7 +19,7 @@ def dataNotFound(e):
 @limits(calls=19, period=1)
 @sleep_and_retry
 @limits(calls=99, period=120)
-def call_riot(url):
+def call_riot(url, apikey):
     response = requests.get(url, headers={"X-Riot-Token": apikey})
 
     if response.status_code >= 500:
@@ -107,17 +107,17 @@ def generateShardLookup():
 
     return lookup
 
-#TODO move it somewhere where it makes more sense (not global)
-config = configparser.ConfigParser()
-config.read("apikey.ini")
-apikey = config["riotapi"]["apiKey"]
 
 def getNGames(n):
     summonername = "pwain"
     region = "euw1"
     regionv5 = "europe"
 
-    summoner = call_riot("https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-name/" + summonername)
+    config = configparser.ConfigParser()
+    config.read("apikey.ini")
+    apikey = config["riotapi"]["apiKey"]
+
+    summoner = call_riot("https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-name/" + summonername, apikey)
     me = json.loads(summoner.text)
 
     #runeslookup = generateRunesLookup()
@@ -130,7 +130,7 @@ def getNGames(n):
     prevIndex = -1
     for index in indexes:
         if prevIndex >= 0:
-            r = call_riot(f"https://{regionv5}.api.riotgames.com/lol/match/v5/matches/by-puuid/{me['puuid']}/ids?start={prevIndex}&count={index - prevIndex}")
+            r = call_riot(f"https://{regionv5}.api.riotgames.com/lol/match/v5/matches/by-puuid/{me['puuid']}/ids?start={prevIndex}&count={index - prevIndex}", apikey)
             matches.extend(json.loads(r.text))
         prevIndex = index
 
@@ -143,7 +143,7 @@ def getNGames(n):
     db = []
     for match in matches:
         #get match details
-        r = call_riot(f"https://{regionv5}.api.riotgames.com/lol/match/v5/matches/{match}")
+        r = call_riot(f"https://{regionv5}.api.riotgames.com/lol/match/v5/matches/{match}", apikey)
         if not r.ok:
             bar.next()
             continue
@@ -154,7 +154,7 @@ def getNGames(n):
 
         #get match timeline for summonersrift games (not aram)
         if matchdetails["info"]["gameMode"] == "CLASSIC":
-            r = call_riot(f"https://{regionv5}.api.riotgames.com/lol/match/v5/matches/{match}/timeline")
+            r = call_riot(f"https://{regionv5}.api.riotgames.com/lol/match/v5/matches/{match}/timeline", apikey)
             matchTimeline = json.loads(r.text)
 
         #get the right stats
@@ -298,7 +298,7 @@ def updateDB(entries):
 
 def main():
 
-    db = getNGames(15)
+    db = getNGames(25)
 
     """ f = open("data/db_dump.json", "w")
     f.write(json.dumps(db))
