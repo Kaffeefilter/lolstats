@@ -5,6 +5,7 @@ from ratelimit import limits, sleep_and_retry, RateLimitException
 from backoff import on_exception, expo
 from progress.bar import Bar
 from pprint import pprint
+import pymongo
 
 def dataNotFound(e):
     return 404 == e.response.status_code
@@ -156,6 +157,7 @@ def getNGames(n):
             r = call_riot(f"https://{regionv5}.api.riotgames.com/lol/match/v5/matches/{match}/timeline")
             matchTimeline = json.loads(r.text)
 
+        #TODO redundante for schleifen entfernen
         #get the right stats
         for participant in matchdetails["info"]["participants"]:
             if participant["summonerName"] == summonername:
@@ -226,8 +228,8 @@ def getNGames(n):
                 "matchId": matchdetails["metadata"]["matchId"],
                 "win": summonerMatchStats["win"],
                 "gameDuration": matchdetails["info"]["gameDuration"],
-                "individualPosition": summonerMatchStats["individualPosition"],
-                "lane": summonerMatchStats["lane"]
+                "individualPosition": summonerMatchStats["individualPosition"] if matchdetails["info"]["gameMode"] != "ARAM" else "ARAM",
+                "lane": summonerMatchStats["lane"] if matchdetails["info"]["gameMode"] != "ARAM" else "MIDDLE"
             },
             "stats": {
                 "kda": {
@@ -277,13 +279,40 @@ def getNGames(n):
     return db
 
 
+def updateDB(entries):
+    client = pymongo.MongoClient("mongodb://localhost:27017/")
+    db = client["lolstatstest"]
+
+    colMatches = db["matches"]
+
+    for entry in entries:
+        if not colMatches.find_one({"matchId": entry['game']['matchId']}):
+            colMatches.insert_one({"matchId": entry['game']['matchId']})
+
+            data = { "_id": entry['game']['championId'], "name": entry['game']['championName'] }
+            db["championInfo"].update_one(data, {"$set": data}, upsert=True)
+            
+            #colChampion = id, champId, gamemode, lane (individual position), games
+            filter = { "championId": entry['game']['championId'], "gameMode": entry['game']['gameMode'], "individualPosition": entry['game']['individualPosition'] }
+            docChampion = db["champion"].find_one(filter)
+            if docChampion:
+                games = docChampion["games"] + 1
+            else:
+                games = 1
+            db["champion"].update_one(filter, {"$set": { "games": games }}, upsert=True)
+
+
+
+
 def main():
 
-    db = getNGames(100)
+    db = getNGames(50)
 
-    f = open("data/db_dump.json", "w")
+    """ f = open("data/db_dump.json", "w")
     f.write(json.dumps(db))
-    f.close()
+    f.close() """
+
+    updateDB(db)
 
 
 
