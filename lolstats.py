@@ -107,7 +107,7 @@ def generateShardLookup():
 
     return lookup
 
-
+#TODO move it somewhere where it makes more sense (not global)
 config = configparser.ConfigParser()
 config.read("apikey.ini")
 apikey = config["riotapi"]["apiKey"]
@@ -157,30 +157,32 @@ def getNGames(n):
             r = call_riot(f"https://{regionv5}.api.riotgames.com/lol/match/v5/matches/{match}/timeline")
             matchTimeline = json.loads(r.text)
 
-        #TODO redundante for schleifen entfernen
         #get the right stats
         for participant in matchdetails["info"]["participants"]:
             if participant["summonerName"] == summonername:
                 summonerMatchStats = participant
 
-        #get the right team stats
-        for team in matchdetails["info"]["teams"]:
-            if team["teamId"] == summonerMatchStats["teamId"]:
-                teamStats = team
-
-        #calculate team kills since there is no data for it
         teamKills = 0
+        teammates = []
+        opponents = []
         for participant in matchdetails["info"]["participants"]:
-            if participant["teamId"] == summonerMatchStats["teamId"]:
-                teamKills += participant["kills"]
-
-        #get opponents stats
-        for participant in matchdetails["info"]["participants"]:
+            #get opponents stats
             if (
                 participant["teamId"] != summonerMatchStats["teamId"] and 
                 participant["individualPosition"] == summonerMatchStats["individualPosition"]
             ):
                 opponentMatchStats = participant
+
+            #calculate team kills since there is no data for it
+            if participant["teamId"] == summonerMatchStats["teamId"]:
+                teamKills += participant["kills"]
+
+            #get teammates and opponents
+            if participant["summonerName"] == summonername: continue
+            elif participant["teamId"] == summonerMatchStats["teamId"]:
+                teammates.append({"puuid": participant["puuid"], "name": participant["summonerName"]})
+            else: 
+                opponents.append({"puuid": participant["puuid"], "name": participant["summonerName"]})
 
         #get timelinestats
         summonerTimeline = []
@@ -207,16 +209,6 @@ def getNGames(n):
                     "totalGold": frame["participantFrames"][str(opponentTimelineId)]["totalGold"],
                     "xp": frame["participantFrames"][str(opponentTimelineId)]["xp"]
                 })
-
-        #get teammates and opponents
-        teammates = []
-        opponents = []
-        for participant in matchdetails["info"]["participants"]:
-            if participant["summonerName"] == summonername: continue
-            elif participant["teamId"] == summonerMatchStats["teamId"]:
-                teammates.append({"puuid": participant["puuid"], "name": participant["summonerName"]})
-            else: 
-                opponents.append({"puuid": participant["puuid"], "name": participant["summonerName"]})
 
         dbentry = {
             "game": {
@@ -306,16 +298,16 @@ def updateDB(entries):
 
 def main():
 
-    #db = getNGames(50)
+    db = getNGames(15)
 
     """ f = open("data/db_dump.json", "w")
     f.write(json.dumps(db))
     f.close() """
 
-    with open("data/examplegames.json") as f:
-        db = json.load(f)
+    #with open("data/examplegames.json") as f:
+    #    db = json.load(f)
 
-    updateDB(db)
+    #updateDB(db)
 
 
 
