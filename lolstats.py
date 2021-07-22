@@ -270,44 +270,110 @@ def getNGames(n):
     print(f"saved {len(db)} from {len(matches)} games")
     return db
 
-
+client = None
+db = None
 def updateDB(entries):
+    global client
     client = pymongo.MongoClient("mongodb://localhost:27017/")
-    db = client["lolstatstest"]
+    #dbtest = client["lolstatstest"]
 
-    colMatches = db["matches"]
+    """ colMatches = dbtest["matches"]
 
     for entry in entries:
         if not colMatches.find_one({"matchId": entry['game']['matchId']}):
             colMatches.insert_one({"matchId": entry['game']['matchId']})
 
             data = { "_id": entry['game']['championId'], "name": entry['game']['championName'] }
-            db["championInfo"].update_one(data, {"$set": data}, upsert=True)
+            dbtest["championInfo"].update_one(data, {"$set": data}, upsert=True)
             
             #colChampion = id, champId, gamemode, lane (individual position), games
             filter = { "championId": entry['game']['championId'], "gameMode": entry['game']['gameMode'], "individualPosition": entry['game']['individualPosition'] }
-            docChampion = db["champion"].find_one(filter)
+            docChampion = dbtest["champion"].find_one(filter)
             if docChampion:
                 games = docChampion["games"] + 1
             else:
                 games = 1
-            db["champion"].update_one(filter, {"$set": { "games": games }}, upsert=True)
+            dbtest["champion"].update_one(filter, {"$set": { "games": games }}, upsert=True) """
 
+    global db
+    db = client["lolstats"]
 
+    #delete collection only for testing purposes
+    db["matches"].drop()
+    db["championInfo"].drop()
+    db["champion"].drop()
+    db["statsbreakdown"].drop()
 
+    for entry in entries:
+        if not db["matches"].find_one({"matchId": entry['game']['matchId']}):
+            db["matches"].insert_one({"matchId": entry['game']['matchId']})
+
+            #Save Champion id and name
+            data = { "_id": entry['game']['championId'], "name": entry['game']['championName'] }
+            db["championInfo"].update_one(data, {"$set": data}, upsert=True)
+
+            filter = { "championId": entry['game']['championId'], "gameMode": entry['game']['gameMode'], "individualPosition": entry['game']['individualPosition'] }
+            docChampion = db["champion"].find_one(filter)
+            if docChampion:
+                updateChampion(docChampion["_id"], entry)
+            else:
+                insertChampion(entry)
+
+def updateChampion(uid, entry):
+    docChampion = db["champion"].find_one({ "_id": uid })
+    updateStatsSummoner(docChampion["statsbreakdownId"], entry)
+
+def insertChampion(entry):
+    statsbreakdownId = insertStatsSummoner(entry)
+    data = { 
+        "championId": entry['game']['championId'], 
+        "gameMode": entry['game']['gameMode'], 
+        "individualPosition": entry['game']['individualPosition'], 
+        "statsbreakdownId": statsbreakdownId 
+    }
+    db["champion"].insert_one(data)
+
+def updateStatsSummoner(uid, entry):
+    docStats = db["statsbreakdown"].find_one({ "_id": uid })
+    #gamecounterId = docStats["gamecounterId"]
+    data = {
+        "totalgames": docStats["totalgames"] + 1,
+        "wins": docStats["wins"] + int(entry["game"]["win"]),
+        "avgCcScore": (docStats["avgCcScore"] * docStats["totalgames"] + entry["stats"]["ccScore"]) / (docStats["totalgames"] + 1),
+        "ctrlWards": docStats["ctrlWards"] + 1, #TODO Wards and Visionscore not in entry
+        "avgKills": (docStats["avgKills"] * docStats["totalgames"] + entry["stats"]["kda"]["kills"]) / (docStats["totalgames"] + 1),
+        "avgDeaths": (docStats["avgDeaths"] * docStats["totalgames"] + entry["stats"]["kda"]["deaths"]) / (docStats["totalgames"] + 1),
+        "avgAssists": (docStats["avgAssists"] * docStats["totalgames"] + entry["stats"]["kda"]["assists"]) / (docStats["totalgames"] + 1)
+    }
+    db["statsbreakdown"].update_one({"_id": uid}, {"$set": data})
+    #TODO update rest
+
+def insertStatsSummoner(entry):
+    #TODO insert other collection first to get the uids
+    data = {
+        "totalgames": 1,
+        "wins": int(entry["game"]["win"]),
+        "avgCcScore": entry["stats"]["ccScore"],
+        "ctrlWards": 1, #TODO Wards and Visionscore not in entry
+        "avgKills": entry["stats"]["kda"]["kills"],
+        "avgDeaths": entry["stats"]["kda"]["deaths"],
+        "avgAssists": entry["stats"]["kda"]["assists"]
+    }
+    stats = db["statsbreakdown"].insert_one(data)
+    return stats.inserted_id
 
 def main():
 
-    db = getNGames(25)
+    #db = getNGames(25)
 
     """ f = open("data/db_dump.json", "w")
     f.write(json.dumps(db))
     f.close() """
 
-    #with open("data/examplegames.json") as f:
-    #    db = json.load(f)
+    with open("data/examplegames.json") as f:
+        db = json.load(f)
 
-    #updateDB(db)
+    updateDB(db)
 
 
 
