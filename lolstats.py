@@ -305,6 +305,7 @@ def updateDB(entries):
     db["championInfo"].drop()
     db["champion"].drop()
     db["statsbreakdown"].drop()
+    db["gamecounter"].drop()
 
     for entry in entries:
         if not db["matches"].find_one({"matchId": entry['game']['matchId']}):
@@ -317,7 +318,8 @@ def updateDB(entries):
             filter = { "championId": entry['game']['championId'], "gameMode": entry['game']['gameMode'], "individualPosition": entry['game']['individualPosition'] }
             docChampion = db["champion"].find_one(filter)
             if docChampion:
-                updateChampion(docChampion["_id"], entry)
+                #updateChampion(docChampion["_id"], entry)
+                pass
             else:
                 insertChampion(entry)
 
@@ -352,17 +354,36 @@ def updateStatsSummoner(uid, entry):
 
 def insertStatsSummoner(entry):
     #TODO insert other collection first to get the uids
+    gamecounterId = insertGamecounter(entry)
+
     data = {
-        "totalgames": 1,
-        "wins": int(entry["game"]["win"]),
+        "gamecounterId": gamecounterId,
         "avgCcScore": entry["stats"]["ccScore"],
         "ctrlWards": 1, #TODO Wards and Visionscore not in entry
-        "avgKills": entry["stats"]["kda"]["kills"],
-        "avgDeaths": entry["stats"]["kda"]["deaths"],
-        "avgAssists": entry["stats"]["kda"]["assists"]
     }
     stats = db["statsbreakdown"].insert_one(data)
     return stats.inserted_id
+
+def insertGamecounter(entry):
+    data = {
+        "totalgames": 1,
+        "wins": int(entry["game"]["win"]),
+        "blueSide": 1 if entry["game"]["teamId"] == 100 else 0,
+        "blueWins": int(entry["game"]["win"]) if entry["game"]["teamId"] == 100 else 0,
+        "redSide": 1 if entry["game"]["teamId"] == 200 else 0,
+        "redWins": int(entry["game"]["win"]) if entry["game"]["teamId"] == 200 else 0,
+        "avgGameDuration": entry["game"]["gameDuration"],
+        "minGameDuration": entry["game"]["gameDuration"],
+        "maxGameDuration": entry["game"]["gameDuration"]
+    }
+    if entry["game"]["gameMode"] != "ARAM":
+            data.update({
+                "minutes": {
+                    str(len(entry["stats"]["summonerTimeline"]) - 1): 1
+                }
+            })
+    gc = db["gamecounter"].insert_one(data)
+    return gc.inserted_id
 
 def main():
 
