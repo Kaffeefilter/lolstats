@@ -318,8 +318,7 @@ def updateDB(entries):
             filter = { "championId": entry['game']['championId'], "gameMode": entry['game']['gameMode'], "individualPosition": entry['game']['individualPosition'] }
             docChampion = db["champion"].find_one(filter)
             if docChampion:
-                #updateChampion(docChampion["_id"], entry)
-                pass
+                updateChampion(docChampion["_id"], entry)
             else:
                 insertChampion(entry)
 
@@ -339,18 +338,15 @@ def insertChampion(entry):
 
 def updateStatsSummoner(uid, entry):
     docStats = db["statsbreakdown"].find_one({ "_id": uid })
-    #gamecounterId = docStats["gamecounterId"]
+    updateGamecounter(docStats["gamecounterId"], entry)
+
+    totalGames = db["gamecounter"].find_one({ "_id": docStats["gamecounterId"] })["totalgames"]
+
     data = {
-        "totalgames": docStats["totalgames"] + 1,
-        "wins": docStats["wins"] + int(entry["game"]["win"]),
-        "avgCcScore": (docStats["avgCcScore"] * docStats["totalgames"] + entry["stats"]["ccScore"]) / (docStats["totalgames"] + 1),
+        "avgCcScore": (docStats["avgCcScore"] * totalGames + entry["stats"]["ccScore"]) / (totalGames + 1),
         "ctrlWards": docStats["ctrlWards"] + 1, #TODO Visionscore not in samplegames
-        "avgKills": (docStats["avgKills"] * docStats["totalgames"] + entry["stats"]["kda"]["kills"]) / (docStats["totalgames"] + 1),
-        "avgDeaths": (docStats["avgDeaths"] * docStats["totalgames"] + entry["stats"]["kda"]["deaths"]) / (docStats["totalgames"] + 1),
-        "avgAssists": (docStats["avgAssists"] * docStats["totalgames"] + entry["stats"]["kda"]["assists"]) / (docStats["totalgames"] + 1)
     }
     db["statsbreakdown"].update_one({"_id": uid}, {"$set": data})
-    #TODO update rest
 
 def insertStatsSummoner(entry):
     #TODO insert other collection first to get the uids
@@ -384,6 +380,30 @@ def insertGamecounter(entry):
             })
     gc = db["gamecounter"].insert_one(data)
     return gc.inserted_id
+
+def updateGamecounter(uid, entry):
+    docGamecounter = db["gamecounter"].find_one({ "_id": uid })
+    data = {
+        "totalgames": docGamecounter["totalgames"] + 1,
+        "wins": docGamecounter["wins"] + int(entry["game"]["win"]),
+        "blueSide": docGamecounter["blueSide"] + 1 if entry["game"]["teamId"] == 100 else docGamecounter["blueSide"],
+        "blueWins": docGamecounter["blueWins"] + int(entry["game"]["win"]) if entry["game"]["teamId"] == 100 else docGamecounter["blueWins"],
+        "redSide": docGamecounter["redSide"] + 1 if entry["game"]["teamId"] == 200 else docGamecounter["redSide"],
+        "redWins": docGamecounter["redWins"] + int(entry["game"]["win"]) if entry["game"]["teamId"] == 200 else docGamecounter["redWins"],
+        "avgGameDuration": (docGamecounter["totalgames"] * docGamecounter["avgGameDuration"] + entry["game"]["gameDuration"]) / (docGamecounter["totalgames"] + 1),
+        "minGameDuration": entry["game"]["gameDuration"] if entry["game"]["gameDuration"] < docGamecounter["minGameDuration"] else docGamecounter["minGameDuration"],
+        "maxGameDuration": entry["game"]["gameDuration"] if entry["game"]["gameDuration"] > docGamecounter["maxGameDuration"] else docGamecounter["maxGameDuration"]
+    }
+    if entry["game"]["gameMode"] != "ARAM":
+        minutesStr = str(len(entry["stats"]["summonerTimeline"]) - 1)
+        data.update({"minutes": docGamecounter["minutes"]})
+        if minutesStr in docGamecounter["minutes"].keys():
+            data["minutes"][minutesStr] = data["minutes"][minutesStr] + 1
+        else:
+            data["minutes"][minutesStr] = 1
+
+
+    db["gamecounter"].update_one({"_id": uid}, {"$set": data})
 
 def main():
 
