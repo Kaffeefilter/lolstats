@@ -343,7 +343,7 @@ def updateStatsSummoner(uid, entry):
     totalGames = db["gamecounter"].find_one({ "_id": docStats["gamecounterId"] })["totalgames"]
 
     data = {
-        "avgCcScore": (docStats["avgCcScore"] * totalGames + entry["stats"]["ccScore"]) / (totalGames + 1),
+        "avgCcScore": (docStats["avgCcScore"] * (totalGames - 1) + entry["stats"]["ccScore"]) / totalGames,
         "ctrlWards": docStats["ctrlWards"] + 1, #TODO Visionscore not in samplegames
     }
     db["statsbreakdown"].update_one({"_id": uid}, {"$set": data})
@@ -413,7 +413,7 @@ def main():
     f.write(json.dumps(db))
     f.close() """
 
-    with open("data/examplegames.json") as f:
+    with open("data/examplegames2.json", 'r', encoding='utf8') as f:
         db = json.load(f)
 
     updateDB(db)
