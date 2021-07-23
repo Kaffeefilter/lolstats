@@ -244,6 +244,8 @@ def getNGames(n):
                     "towerdamage": summonerMatchStats["damageDealtToTurrets"]
                 },
                 "ccScore": summonerMatchStats["timeCCingOthers"],
+                "visionScore": summonerMatchStats["visionScore"],
+                #TODO different Wards (sightward vs visionward)
                 "summonerTimeline": summonerTimeline if matchdetails["info"]["gameMode"] == "CLASSIC" else None,
                 "opponentTimeline": opponentTimeline if matchdetails["info"]["gameMode"] == "CLASSIC" else None,
             },
@@ -340,7 +342,7 @@ def updateStatsSummoner(uid, entry):
         "totalgames": docStats["totalgames"] + 1,
         "wins": docStats["wins"] + int(entry["game"]["win"]),
         "avgCcScore": (docStats["avgCcScore"] * docStats["totalgames"] + entry["stats"]["ccScore"]) / (docStats["totalgames"] + 1),
-        "ctrlWards": docStats["ctrlWards"] + 1, #TODO Wards and Visionscore not in entry
+        "ctrlWards": docStats["ctrlWards"] + 1, #TODO Visionscore not in samplegames
         "avgKills": (docStats["avgKills"] * docStats["totalgames"] + entry["stats"]["kda"]["kills"]) / (docStats["totalgames"] + 1),
         "avgDeaths": (docStats["avgDeaths"] * docStats["totalgames"] + entry["stats"]["kda"]["deaths"]) / (docStats["totalgames"] + 1),
         "avgAssists": (docStats["avgAssists"] * docStats["totalgames"] + entry["stats"]["kda"]["assists"]) / (docStats["totalgames"] + 1)
