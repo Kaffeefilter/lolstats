@@ -396,7 +396,7 @@ def updateGamecounter(uid, entry):
     }
     if entry["game"]["gameMode"] != "ARAM":
         minutesStr = str(len(entry["stats"]["summonerTimeline"]) - 1)
-        data.update({"minutes": docGamecounter["minutes"]})
+        data.update({"minutes": docGamecounter["minutes"]})     #add existing counter back into data
         if minutesStr in docGamecounter["minutes"].keys():
             data["minutes"][minutesStr] = data["minutes"][minutesStr] + 1
         else:
